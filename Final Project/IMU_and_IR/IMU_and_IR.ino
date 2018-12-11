@@ -1,5 +1,15 @@
 #include <AltSoftSerial.h>
 
+#include <FilterDerivative.h>
+#include <FilterOnePole.h>
+#include <Filters.h>
+#include <FilterTwoPole.h>
+#include <FloatDefine.h>
+#include <RunningStatistics.h>
+
+float filterFrequency = 2.0;
+FilterOnePole lowpassFilter (LOWPASS, filterFrequency);
+
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "Wire.h"
@@ -71,13 +81,31 @@ double numtest = 56.22;
 char buf[10];
 int stepcount = 0;
 int reading = 0;
-int hr = 0;
+
+float hr = 0;
+float LPF_hr = 0;
+unsigned long volatile hr_dif = 0;
+float BPM = 0;
+float hr_thresh;
 
 /* 
  *  Function to check the interrupt pin to see if there is data available in the MPU's buffer
  */
 void interruptPinISR() {
   ipinReady = true;
+}
+
+void detect_hr(){
+  hr = analogRead(A1);
+  lowpassFilter.input( hr);
+  LPF_hr = lowpassFilter.output();
+  if (LPF_hr > hr_thresh){
+    hr_dif = (currentTime - lastTime)/1000000; // Converts micros to seconds
+    BPM = 60 / (hr_dif);
+    Serial.print("Heart Rate: ");
+    Serial.print(BPM);
+  }
+  
 }
 
 /* 
@@ -104,7 +132,7 @@ void readIMU() {
   gy=Wire.read()<<8|Wire.read();  // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
   gz=Wire.read()<<8|Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
 
-  hr = analogRead(A1);  
+  detect_hr();
 }
 
 /* 
@@ -147,12 +175,12 @@ void sendData() {
         itoa(hr, buf, 10);
         BTserial.write(buf);   //HR
         BTserial.write(" ");
-        BTserial.write("\n");
-        Serial.print(buf);
-        Serial.println();
-//        Serial.println(" ");
 
-        
+        itoa(ax, buf, 10);
+        BTserial.write(buf);   //BPM
+        BTserial.write(" ");
+        BTserial.write("\n");
+              
 }
 
 /* 

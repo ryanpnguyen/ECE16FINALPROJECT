@@ -67,11 +67,14 @@ def grab_samples( n_samples ):
         try:
 #                data = read_BLE( ser )
             data = ser.readline().decode('utf-8').strip()
-#            ti, ax, ay, az, gx, gy, gz = data.split(' ')
-            ti, ax, hr = data.split(' ')
+            ti, ax, hr, BPM = data.split(' ')
             t[i] = float(ti)/1000000.0
             a[i] = float(ax)
             b[i] = float(hr)
+            
+            print('Heart Rate: ')
+            print(BPM)
+            print('\n')
             
         except ValueError:
             print('Invalid data: ', data)
@@ -112,16 +115,16 @@ def update_plots(i):
 
 
     # grab new samples
-    times[N-NS:], values[N-NS:], values2[N-NS:] = grab_samples(NS)
+    times[N-NS:], values[N-NS:], values2[N-NS:], BPM = grab_samples(NS)
     
     proc_data[N-NS:], filter_ICs = filtering.process_ir(values[N-NS:],filter_coeffs, filter_ICs, 0)
-    hr_data[N-NS:], filter_ICs_IR = filtering.process_ir(values2[N-NS:],filter_coeffs, filter_ICs_IR, 0)
+#    hr_data[N-NS:], filter_ICs_IR = filtering.process_ir(values2[N-NS:],filter_coeffs, filter_ICs_IR, 0)
     
     
 #    y = np.zeros((2, N)) 
-    y[0][:] = times
-    y[1][:] = values2
-    hr, location = calculate_hr(y)
+#    y[0][:] = times
+#    y[1][:] = values2
+#    hr, location = calculate_hr(y)
     
     threshold = 10000
     if proc_data[399] > threshold:
@@ -137,7 +140,7 @@ def update_plots(i):
     [ax.set_xlim(times[0],times[N-1]) for ax in axes]
     live_plots[0].set_data(times, values)
     live_plots[1].set_data(times,proc_data)
-    live_plots[2].set_data(times, hr_data)
+    live_plots[2].set_data(times, values2)
     live_plots[3].set_data(times, location)
 
 # ==================== Main ====================
@@ -185,19 +188,19 @@ if (__name__ == "__main__") :
          
         fig, axes = plt.subplots(3, 1)  
 
-        times, ax, heartrate = grab_samples(N)
+        times, ax, heartrate, BPM = grab_samples(N)
         proc_data, filter_ICs = filtering.process_ir(ax,filter_coeffs,filter_ICs, 1)
-        hr_data, filter_ICs_IR = filtering.process_ir(heartrate,filter_coeffs,filter_ICs_IR, 1)
-        y = np.zeros((2, N)) 
-        y[0][:] = times
-        y[1][:] = values
-        hr, location = calculate_hr(y)
+#        hr_data, filter_ICs_IR = filtering.process_ir(heartrate,filter_coeffs,filter_ICs_IR, 1)
+#        y = np.zeros((2, N)) 
+#        y[0][:] = times
+#        y[1][:] = values
+#        hr, location = calculate_hr(y)
         
         
         live_plots = []
         live_plots.append(axes[0].plot(times, ax, lw=2)[0])
         live_plots.append(axes[1].plot(times, proc_data, lw=2)[0])
-        live_plots.append(axes[2].plot(times, hr_data, lw=2)[0])
+        live_plots.append(axes[2].plot(times, heartrate, lw=2)[0])
         live_plots.append(axes[2].plot(times, location, lw=2)[0])
         
         # initialize the y-axis limits and labels
