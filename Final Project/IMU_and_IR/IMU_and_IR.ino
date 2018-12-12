@@ -69,6 +69,8 @@ unsigned long startTime = 0;
 unsigned long volatile elapsedTime = 0;
 unsigned long volatile currentTime = 0;
 unsigned long volatile lastTime = 0;
+unsigned long volatile currentTimehr = 0;
+unsigned long volatile lastTimehr = 0;
 bool newRead = false;
 bool sending = false;
 
@@ -84,10 +86,15 @@ int reading = 0;
 
 float hr = 0;
 float LPF_hr = 0;
-unsigned long volatile hr_dif = 0;
-float BPM = 0;
-float hr_thresh;
+float hr_dif = 0;
+int BPM = 0;
+float hr_thresh = 347;
 
+float derivative = 0;
+float logg;
+float der_log;
+float lastLPF = 0;
+int BLE_BPM = 0;
 /* 
  *  Function to check the interrupt pin to see if there is data available in the MPU's buffer
  */
@@ -97,15 +104,30 @@ void interruptPinISR() {
 
 void detect_hr(){
   hr = analogRead(A1);
-  lowpassFilter.input( hr);
+//  lowpassFilter.input( hr);
+//  LPF_hr = lowpassFilter.output();
+  currentTimehr = millis();
+  derivative = hr - lastLPF; //derivative
+
+  lowpassFilter.input( derivative );
   LPF_hr = lowpassFilter.output();
-  if (LPF_hr > hr_thresh){
-    hr_dif = (currentTime - lastTime)/1000000; // Converts micros to seconds
-    BPM = 60 / (hr_dif);
-    Serial.print("Heart Rate: ");
-    Serial.print(BPM);
-  }
   
+  Serial.println(LPF_hr);
+//  Serial.print(" ");
+//  Serial.println(350);
+  if (LPF_hr > 5){
+    hr_dif = (currentTimehr - lastTimehr)/1000.00; // Converts millis to seconds
+//
+//    Serial.print("HR DIFF: ");
+//    Serial.println(hr_dif);
+    BPM = 60 / (hr_dif); //Ex. Time between beats = 1. 60/1 = 60 BPM
+    
+//    Serial.print("Heart Rate: ");
+//    Serial.println(BPM);
+    lastTimehr = currentTimehr; 
+  }
+  lastLPF = hr;
+  delay(25);
 }
 
 /* 
@@ -132,7 +154,6 @@ void readIMU() {
   gy=Wire.read()<<8|Wire.read();  // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
   gz=Wire.read()<<8|Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
 
-  detect_hr();
 }
 
 /* 
@@ -172,11 +193,11 @@ void sendData() {
 //        Serial.print(buf);
 //        Serial.print(" ");
         
-        itoa(hr, buf, 10);
-        BTserial.write(buf);   //HR
-        BTserial.write(" ");
+//        itoa(hr, buf, 10);
+//        BTserial.write(buf);   //HR
+//        BTserial.write(" ");
 
-        itoa(ax, buf, 10);
+        itoa(BLE_BPM, buf, 10);
         BTserial.write(buf);   //BPM
         BTserial.write(" ");
         BTserial.write("\n");
@@ -247,7 +268,8 @@ void loop(){
 //        sending = false;
 //    }
   pollData();
-
+  detect_hr();
+  
   sending = true;
   if (newRead && sending) {
     sendData();
@@ -256,18 +278,27 @@ void loop(){
 
   if (BTserial.available() > 0) { 
     String dataFromPython =  BTserial.readStringUntil('\n'); // I assume data points are separated by commas, but anything is fine
-    Serial.print("Received: ");
+//    Serial.print("Received: ");
     Serial.println(dataFromPython);
     if ( dataFromPython == "1"){
       stepcount = stepcount + 1;
     }
+    }
+    if(BPM > 45 && BPM < 130){
+      BLE_BPM = BPM;
+    }
+
+    if( currentTimehr - lastTimehr > 1000){
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(10, 0);
     display.clearDisplay();
     display.print("Step Count: ");
-    display.print(stepcount);
-    Serial.print("Recieved: ");
+    display.println(stepcount);
+    display.print("Heart Rate: ");
+    display.println(BLE_BPM);
+        
+//    Serial.print("Recieved: ");
     Serial.println(c);
     display.display();
     delay(10);

@@ -41,7 +41,7 @@ filter_ICs[0,:] = sig.lfilter_zi(filter_coeffs[1][:],filter_coeffs[0][:])
 filter_ICs_IR[1,:] = sig.lfilter_zi(filter_coeffs[3][:],filter_coeffs[2][:])
 filter_ICs_IR[0,:] = sig.lfilter_zi(filter_coeffs[1][:],filter_coeffs[0][:])
 # ==================== Globals ====================
-N = 400                                         # samples to plot
+N = 400                                       # samples to plot
 NS = 20                                         # samples to grab each iteration
 sample_count = 0                                # current sample count
 times, values, values2, values3, values4, values5, values6, values7 = np.zeros((8, N))       # data vectors
@@ -67,14 +67,14 @@ def grab_samples( n_samples ):
         try:
 #                data = read_BLE( ser )
             data = ser.readline().decode('utf-8').strip()
-            ti, ax, hr, BPM = data.split(' ')
+            ti, ax, BPM = data.split(' ')
             t[i] = float(ti)/1000000.0
             a[i] = float(ax)
-            b[i] = float(hr)
+#            b[i] = float(hr)
             
-            print('Heart Rate: ')
-            print(BPM)
-            print('\n')
+#            print('Heart Rate: ')
+#            print(BPM)
+#            print('\n')
             
         except ValueError:
             print('Invalid data: ', data)
@@ -109,13 +109,13 @@ def update_plots(i):
     times[:N-NS] = times[NS:]
     values[:N-NS] = values[NS:]
     proc_data[:N-NS] = proc_data[NS:]
-    values2[:N-NS] = values2[NS:]
+#    values2[:N-NS] = values2[NS:]
 #    hr_data[:N-NS] = hr_data[NS:]
 #    location[:N-NS] = location[NS:]
 
 
     # grab new samples
-    times[N-NS:], values[N-NS:], values2[N-NS:], BPM = grab_samples(NS)
+    times[N-NS:], values[N-NS:], BPM = grab_samples(NS)
     
     proc_data[N-NS:], filter_ICs = filtering.process_ir(values[N-NS:],filter_coeffs, filter_ICs, 0)
 #    hr_data[N-NS:], filter_ICs_IR = filtering.process_ir(values2[N-NS:],filter_coeffs, filter_ICs_IR, 0)
@@ -126,12 +126,12 @@ def update_plots(i):
 #    y[1][:] = values2
 #    hr, location = calculate_hr(y)
     
-    threshold = 10000
-    if proc_data[399] > threshold:
+    threshold = 8000
+    if proc_data[350] > threshold:
             hello =  '1'
             ser.write(hello.encode('utf-8'))     
             
-    elif proc_data[399] < -(threshold):
+    elif proc_data[350] < -(threshold):
             hello = '1'
             ser.write(hello.encode('utf-8'))
 
@@ -140,8 +140,7 @@ def update_plots(i):
     [ax.set_xlim(times[0],times[N-1]) for ax in axes]
     live_plots[0].set_data(times, values)
     live_plots[1].set_data(times,proc_data)
-    live_plots[2].set_data(times, values2)
-    live_plots[3].set_data(times, location)
+#    live_plots[2].set_data(times, values2)
 
 # ==================== Main ====================
 if (__name__ == "__main__") :
@@ -186,9 +185,9 @@ if (__name__ == "__main__") :
         ser.write(hello.encode('utf-8'))
         
          
-        fig, axes = plt.subplots(3, 1)  
+        fig, axes = plt.subplots(2, 1)  
 
-        times, ax, heartrate, BPM = grab_samples(N)
+        times, ax, BPM = grab_samples(N)
         proc_data, filter_ICs = filtering.process_ir(ax,filter_coeffs,filter_ICs, 1)
 #        hr_data, filter_ICs_IR = filtering.process_ir(heartrate,filter_coeffs,filter_ICs_IR, 1)
 #        y = np.zeros((2, N)) 
@@ -200,13 +199,12 @@ if (__name__ == "__main__") :
         live_plots = []
         live_plots.append(axes[0].plot(times, ax, lw=2)[0])
         live_plots.append(axes[1].plot(times, proc_data, lw=2)[0])
-        live_plots.append(axes[2].plot(times, heartrate, lw=2)[0])
-        live_plots.append(axes[2].plot(times, location, lw=2)[0])
+#        live_plots.append(axes[2].plot(times, heartrate, lw=2)[0])
         
         # initialize the y-axis limits and labels
         axes[0].set_ylim(-20000, 20000)
         axes[1].set_ylim(-20000, 20000)
-        axes[2].set_ylim(500, 1050)
+#        axes[2].set_ylim(500, 1050)
     
         axes[0].set_title('AX')
         axes[0].set_xlabel('Time (s)')
@@ -216,9 +214,9 @@ if (__name__ == "__main__") :
         axes[1].set_ylabel('Amplitude')
         axes[1].set_xlabel('Time (s)')
         
-        axes[2].set_title('IR Heart Beat')
-        axes[2].set_ylabel('Amplitude')
-        axes[2].set_xlabel('Time (s)')
+#        axes[2].set_title('IR Heart Beat')
+#        axes[2].set_ylabel('Amplitude')
+#        axes[2].set_xlabel('Time (s)')
     
         # set and start the animation and update at 1ms interval (if possible)
         anim = animation.FuncAnimation(fig, update_plots, interval=1)
