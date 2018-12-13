@@ -95,11 +95,29 @@ float logg;
 float der_log;
 float lastLPF = 0;
 int BLE_BPM = 0;
+
+int redPin = 5;
+int greenPin = 6;
+int bluePin = 7;
+bool rgbon = true; 
+String status_led = "OFF";
 /* 
  *  Function to check the interrupt pin to see if there is data available in the MPU's buffer
  */
 void interruptPinISR() {
   ipinReady = true;
+}
+
+void setColor(int red, int green, int blue)
+{
+  #ifdef COMMON_ANODE
+    red = 255 - red;
+    green = 255 - green;
+    blue = 255 - blue;
+  #endif
+  analogWrite(redPin, red);
+  analogWrite(greenPin, green);
+  analogWrite(bluePin, blue);  
 }
 
 void detect_hr(){
@@ -112,7 +130,7 @@ void detect_hr(){
   lowpassFilter.input( derivative );
   LPF_hr = lowpassFilter.output();
   
-  Serial.println(LPF_hr);
+//  Serial.println(LPF_hr);
 //  Serial.print(" ");
 //  Serial.println(350);
   if (LPF_hr > 5){
@@ -187,12 +205,20 @@ void sendData() {
 //        Serial.print(buf);
 //        Serial.print(" ");
         
-        itoa(ax, buf, 10);
-        BTserial.write(buf);   //ax
+        itoa(gz, buf, 10);
+        BTserial.write(buf);   //gz
         BTserial.write(" ");
 //        Serial.print(buf);
 //        Serial.print(" ");
-        
+
+        itoa(ax, buf, 10);
+        BTserial.write(buf);   //ax
+        BTserial.write(" ");
+
+        itoa(az, buf, 10);
+        BTserial.write(buf);   //az
+        BTserial.write(" ");
+
 //        itoa(hr, buf, 10);
 //        BTserial.write(buf);   //HR
 //        BTserial.write(" ");
@@ -238,6 +264,11 @@ void setup(){
    
   pinMode(button, INPUT);
   pinMode(4, INPUT_PULLUP);
+
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);  
+  setColor(0, 255, 0);  // green
 //  pinMode(A1, INPUT);
   
   // Create an interrupt for pin2, which is connected to the INT pin of the MPU6050
@@ -278,11 +309,36 @@ void loop(){
 
   if (BTserial.available() > 0) { 
     String dataFromPython =  BTserial.readStringUntil('\n'); // I assume data points are separated by commas, but anything is fine
-//    Serial.print("Received: ");
+    Serial.print("Received: ");
     Serial.println(dataFromPython);
-    if ( dataFromPython == "1"){
+    if ( dataFromPython == "1"){ //STEP DETECTION
       stepcount = stepcount + 1;
     }
+//    if ( dataFromPython == "2"){ //LED DETECTION
+//        if (!rgbon) { // if not on, turn on 
+//          rgbon = true;
+//          setColor(0, 255, 0);  // green
+//      }
+//      else{ // turn it off
+//          rgbon = false;
+//          setColor(255, 0, 0);  // red
+//      }
+//    }
+  }
+
+    if(ax > 8000 && az < -8000){
+        if (!rgbon) { // if not on, turn on 
+          rgbon = true;
+          setColor(0, 255, 0);  // green
+          status_led = "ON";
+          delay(400);
+      }
+      else{ // turn it off
+          rgbon = false;
+          setColor(255, 0, 0);  // red
+          status_led = "OFF";     
+          delay(400); 
+      }
     }
     if(BPM > 45 && BPM < 130){
       BLE_BPM = BPM;
@@ -297,6 +353,8 @@ void loop(){
     display.println(stepcount);
     display.print("Heart Rate: ");
     display.println(BLE_BPM);
+    display.print("LED Status: ");
+    display.println(status_led);
         
 //    Serial.print("Recieved: ");
     Serial.println(c);
