@@ -330,13 +330,13 @@ void loop(){
         if (!rgbon) { // if not on, turn on 
           rgbon = true;
           setColor(0, 255, 0);  // green
-          status_led = "ON";
+          status_led = "OFF";
           delay(400);
       }
       else{ // turn it off
           rgbon = false;
           setColor(255, 0, 0);  // red
-          status_led = "OFF";     
+          status_led = "ON";     
           delay(400); 
       }
     }
@@ -344,7 +344,6 @@ void loop(){
       BLE_BPM = BPM;
     }
 
-    if( currentTimehr - lastTimehr > 1000){
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(10, 0);
@@ -360,7 +359,6 @@ void loop(){
     Serial.println(c);
     display.display();
     delay(10);
-    }
   }
   
 value = digitalRead(button);
