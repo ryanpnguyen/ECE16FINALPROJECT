@@ -47,7 +47,43 @@ sample_count = 0                                # current sample count
 times, values, values2, values3, values4, values5, values6, values7 = np.zeros((8, N))       # data vectors
 serial_port = 'COM4' # 'COM3'   # the serial port to use
 serial_baud = 9600   
-count = 0                         
+count = 0       
+
+teamID = 'Blink'                  
+
+# ========================================
+
+# Place this code at the top of your file
+
+import pyrebase
+import time
+
+config = {
+  "apiKey": "AIzaSyBCuJvm-DPjvS6P9TQ-sXhs01g76e9aWto",
+  "authDomain": "ece16-fall18.firebaseapp.com",
+  "databaseURL": "https://ece16-fall18.firebaseio.com",
+  "storageBucket": "ece16-fall18.appspot.com",
+}
+
+firebase = pyrebase.initialize_app(config)
+db = firebase.database()
+
+last_time = time.time()
+
+# =========================================
+
+# Call this function whenever you want to write to the db. Note that there is a maximum of 2 writes per second
+def write_to_pyrebase(teamID, hr, steps):
+    assert isinstance(teamID, str)
+    assert isinstance(hr, int)
+    assert isinstance(steps, int)
+    
+    global last_time
+    current_time = time.time()
+    if (current_time - last_time >= 0.5):
+        last_time = current_time
+        data = {"teamID": teamID, "hr": hr, "steps": steps, "timestamp": current_time}
+        db.child("readings").push(data)
 
 #============================READ BLE=============================
 def read_BLE( ser ):
@@ -67,12 +103,14 @@ def grab_samples( n_samples ):
         try:
 #                data = read_BLE( ser )
             data = ser.readline().decode('utf-8').strip()
-            ti, gz, ax, az, BPM = data.split(' ')
+            ti, gz, ax, az, stepcount, BPM = data.split(' ')
             t[i] = float(ti)/1000000.0
             a[i] = float(gz)
             b[i] = float(ax)
             c[i] = float(az)
-            
+            steps = int(stepcount)
+            hr= int(BPM)
+            write_to_pyrebase(teamID, hr, steps)
 #            print('Heart Rate: ')
 #            print(BPM)
 #            print('\n')
@@ -100,7 +138,7 @@ def grab_samples( n_samples ):
         i += 1
 
     sample_count += n_samples
-    return t, a, b, c, d
+    return t, a, b, c, d, e
 
 # ==================== Grab new samples and plot ====================
 def update_plots(i):
@@ -117,7 +155,7 @@ def update_plots(i):
 
 
     # grab new samples
-    times[N-NS:], values[N-NS:], values2[N-NS:], values3[N-NS:], BPM = grab_samples(NS)
+    times[N-NS:], values[N-NS:], values2[N-NS:], values3[N-NS:], stepcount, BPM = grab_samples(NS)
     
     proc_data[N-NS:], filter_ICs = filtering.process_ir(values[N-NS:],filter_coeffs, filter_ICs, 0)
 #    hr_data[N-NS:], filter_ICs_IR = filtering.process_ir(values2[N-NS:],filter_coeffs, filter_ICs_IR, 0)
@@ -192,7 +230,7 @@ if (__name__ == "__main__") :
          
         fig, axes = plt.subplots(4, 1)  
 
-        times, gz, ax, az, BPM = grab_samples(N)
+        times, gz, ax, az, stepcount, BPM = grab_samples(N)
         proc_data, filter_ICs = filtering.process_ir(ax,filter_coeffs,filter_ICs, 1)
 #        hr_data, filter_ICs_IR = filtering.process_ir(heartrate,filter_coeffs,filter_ICs_IR, 1)
 #        y = np.zeros((2, N)) 

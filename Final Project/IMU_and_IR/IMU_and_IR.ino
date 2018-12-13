@@ -219,6 +219,10 @@ void sendData() {
         BTserial.write(buf);   //az
         BTserial.write(" ");
 
+        itoa(stepcount, buf, 10);
+        BTserial.write(buf);   //stepcount
+        BTserial.write(" ");
+
 //        itoa(hr, buf, 10);
 //        BTserial.write(buf);   //HR
 //        BTserial.write(" ");
